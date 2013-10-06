@@ -3,9 +3,9 @@ CFLAGS = -g -Wall
 # main executable file first
 TARGET = proj02
 # object files next
-OBJS = main.o
+OBJS = shellper.o main.o
 # header files next
-DEPS =
+DEPS = shellper.h
 .PHONY : clean
 
 all: $(TARGET)
