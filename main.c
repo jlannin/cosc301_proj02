@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     {
 	//fprintf(stderr, "execv failed: %s\n", strerror(errno));
     }
-
+//testing
 	char ** arr;
 	char ***commands;
 	FILE *datafile = stdin;
@@ -30,7 +30,8 @@ int main(int argc, char **argv) {
 	fflush(stdout);
 	int i;
 	int j;
-	int sequential = 1;
+	int **sequential;
+	**sequential = 1;
 	while(fgets(buffer, 1024, datafile) != NULL)
 	{
 		arr = tokenify(buffer);
@@ -48,10 +49,23 @@ int main(int argc, char **argv) {
 			i++;
 		}
 		*/
-		runProcesses(commands);
+		if(sequential)
+		{
+			runProcesses(commands, sequential);
+			printf("%d\n", sequential);
+		}
+		else
+		{
+			runParallel(commands, sequential);
+		}
 		freeToken(arr);
 		freeCommands(commands);
-		printf("Shell shell sheeeeeeellllll:");
+		if(**sequential == 2)
+		{
+			exit(1);
+		}
+
+		printf("Shell shell shell:");
 	}
 
     return 0;
