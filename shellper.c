@@ -7,7 +7,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include "shellper.h"
 
 //break up input string into sections by semicolon
@@ -133,11 +132,9 @@ void freeCommands(char ***arr)
 	free(arr);
 }
 
-void runProcesses(char *** commands, int **sequential)
+void runSequential(char *** commands, int *sequential)
 {
 	int i = 0;
-	int exittest = 0;
-	int sequential = 1;
 	while (commands[i] != NULL)
 	{
 		char **argj = commands[i];
@@ -145,12 +142,12 @@ void runProcesses(char *** commands, int **sequential)
 		{
 			if (commands[i][1] == NULL)
 			{
-				exittest = 1;
+				(*sequential) = 2;
 			}
 		}
 		else if (strcmp(commands[i][0], "mode") == 0)
 		{
-			sequential = modefun(commands[i], sequential);
+			modefun(commands[i], sequential);
 		}
 		else
 		{
@@ -180,29 +177,20 @@ void runProcesses(char *** commands, int **sequential)
 		}
 		i++;
 	}
-	if (exittest)
-	{
-		sequential = 2;
-	}
-	return sequential;
 }
 
-void runParallel(char ***commands, int ** sequential)
+int runParallel(char ***commands, int *sequential)
 {
 	pid_t pid = fork();
 	int childreturn;
-	int sequential = 0;
 	int i = 0;
-	int exittest;
 	int numCommands = commandCount(commands);
-	int *pids[numCommands];
 	int check;
 	if (pid == 0)
 	{
 		while(commands[i] != NULL)
 		{
 			pid_t pid1 = fork();
-			pids[i] = 0;
 			if (pid1 == 0)
 			{
 				char **argj = commands[i];
@@ -210,65 +198,65 @@ void runParallel(char ***commands, int ** sequential)
 				{
 					if (commands[i][1] == NULL)
 					{
-						exittest = 1;
+						printf("REACHED");
+						exit(2);
 					}
 				}
 				else if (strcmp(commands[i][0], "mode") == 0)
 				{
-					sequential = modefun(commands[i], sequential);
+					modefun(commands[i], sequential);
+					exit(*sequential);
 				}
 				else
 				{
-						if (execv(argj[0], argj) < 0)
-	   					{
-							fprintf(stderr, "execv failed: %s\n", strerror(errno));
-							exit(1);
-						}
+					if (execv(argj[0], argj) < 0)
+	   				{
+						fprintf(stderr, "execv failed: %s\n", strerror(errno));
+						exit(*sequential);
+					}
 				}
 			}
 			else if (pid1 > 0)
 			{
+				// if returnarr[i] = 1 
+				// then outputarry [i] = 
 				i++;
 			}
 		}
 		i = 0;
 		while (i < numCommands)
 		{
-			check = waitpid(pids[i],&childreturn,0);
-			printf("%d\n", check);
-			printf("Child's Done Flag \n");
-			if (check != -1)
+			check = wait(&childreturn);
+			printf("%d\n", WEXITSTATUS(childreturn));
+			if((*sequential) != 2)
 			{
-   				printf("%s\n", "Child process finished!");
-     			}
-			else
+				(*sequential) = WEXITSTATUS(childreturn);
+			}
+			if (check == -1)
 			{
 				fprintf(stderr, "Wait failed HERE: %s\n", strerror(errno));
 				//exit(1);
 			}
 		i++;
 		}
-		exit(1);
-		printf("%s\n", "All processes done");
-		if (exittest)
-		{
-			sequential = 2;
-		}
+		exit((*sequential));
 	}
 	else if (pid > 0)
 	{
+		
 		check = waitpid(pid,&childreturn,0);
-		printf("Child's Done Original");
-		if (check != -1)	
+		printf("%d\n", WEXITSTATUS(childreturn));
+		if((*sequential) != 2)
 		{
-   			printf("%s\n", "Child process finished!");
-     		}
-		else
+			(*sequential) = WEXITSTATUS(childreturn);
+		}
+		if (check == -1)	
 		{
 			fprintf(stderr, "Wait failed: %s\n", strerror(errno));
 			exit(1);
 		}
 	}
+	return (*sequential);
 }
 
 int commandCount(char ***commands)
@@ -282,38 +270,40 @@ int commandCount(char ***commands)
 }
 
 
-int modefun(char **commands, int sequential)
+void modefun(char **commands, int *sequential)
 {
-	if(commands[1] == NULL)
+	if((*sequential) != 2)
 	{
-		if(sequential)
+		if(commands[1] == NULL)
 		{
-			printf("%s\n","sequential mode");
+			if((*sequential))
+			{
+				printf("%s\n","sequential mode");
+			}
+			else
+			{
+				printf("%s\n", "parallel mode");
+			}
+		}
+		else if(commands[2] == NULL)
+		{
+			if(strncasecmp("parallel", commands[1], strlen(commands[1])) == 0)
+			{
+				(*sequential) = 0;
+			}
+			else if(strncasecmp("sequential",commands[1], strlen(commands[1])) == 0)
+			{
+				(*sequential) = 1;
+			}
+			else
+			{
+				fprintf(stderr, "%s\n", "Incorrect mode specified, please only use parallel or sequential. Thank you.");
+			}
 		}
 		else
 		{
-			printf("%s\n", "parallel mode");
+			fprintf(stderr, "%s\n", "Too many parameters, mode only allows one.");
 		}
 	}
-	else if(commands[2] == NULL)
-	{
-		if(strncasecmp("parallel", commands[1], strlen(commands[1])) == 0)
-		{
-			sequential = 0;
-		}
-		else if(strncasecmp("sequential",commands[1], strlen(commands[1])) == 0)
-		{
-			sequential = 1;
-		}
-		else
-		{
-			fprintf(stderr, "%s\n", "Incorrect mode specified, please only use parallel or sequential. Thank you.");
-		}
-	}
-	else
-	{
-		fprintf(stderr, "%s\n", "Too many parameters, mode only allows one.");
-	}
-		return sequential;
 }
 
