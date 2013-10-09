@@ -26,9 +26,11 @@ int main(int argc, char **argv)
 	{
 		arr = tokenify(buffer);
 		commands = extractCommands(arr);
-		sequential = runProcesses(commands, (&sequential));
+		runProcesses(commands, (&sequential));
 		freeToken(arr);
 		freeCommands(commands);
+		free(arr);
+		free(commands);
 		if(sequential == 2)
 		{
 			exit(1);
@@ -40,7 +42,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int runProcesses(char *** commands, int *sequential)
+void runProcesses(char *** commands, int *sequential)
 {
 	if((*sequential))
 		{
@@ -48,8 +50,7 @@ int runProcesses(char *** commands, int *sequential)
 		}
 		else
 		{
-			(*sequential) = runParallel(commands, sequential);
+			runParallel(commands, sequential);
 		}
-	return (*sequential);
 
 }
