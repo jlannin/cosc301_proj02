@@ -15,6 +15,20 @@
 
 int main(int argc, char **argv) 
 {
+	struct stat statresult;
+	int exist = stat("shell-config", &statresult);
+	int search = 1;
+	struct node *paths;
+	if(exist < 0)
+	{
+		printf("%s\n", "shell-config not found, please use full path names");
+		search = 0;
+	}
+	else if (exist == 0)
+	{
+		paths = getPaths();
+		list_print(paths);
+	}
 	char ** arr;
 	char ***commands;
 	FILE *datafile = stdin;
@@ -53,4 +67,23 @@ void runProcesses(char *** commands, int *sequential)
 			runParallel(commands, sequential);
 		}
 
+}
+
+struct node *getPaths()
+{
+	FILE *datafile =  NULL;
+	datafile = fopen("shell-config", "r");
+	if (datafile == NULL)
+	{
+		printf("Unable to open file %s: %s\n", "shell-config", strerror(errno));
+		exit(1);
+	}
+	struct node *paths = malloc(sizeof(struct node));
+	char buffer[128];
+	while(fgets(buffer, 128, datafile) != NULL)
+	{
+		list_append(buffer, &paths);
+	}
+	fclose(datafile);
+	return paths;
 }

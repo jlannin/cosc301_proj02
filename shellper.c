@@ -246,7 +246,6 @@ void runParallel(char ***commands, int *sequential)
 				fprintf(stderr, "Wait failed HERE: %s\n", strerror(errno));
 				//exit(1);
 			}
-		printf("wait here");
 		i++;
 		}
 		free(validreturns);
@@ -328,5 +327,39 @@ void modefun(char **commands, int *sequential)
 			fprintf(stderr, "%s\n", "Too many parameters, mode only allows one.");
 		}
 	}
+}
+
+
+void list_append(const char *name, struct node **head) {
+	if (name == NULL)
+	{
+		return;
+	}
+	struct node *newnode = malloc(sizeof(struct node));
+	strncpy(newnode->name, name, 127);
+	newnode->next = NULL;
+ 	while((*head) != NULL)
+       	{
+       		head = &((*head)->next);
+	}
+	(*head)=newnode;
+}
+
+void list_print(const struct node *head) {
+        while(head != NULL)
+        {
+                printf("Node at address %p has value %s\n", head, head->name);
+                head = head->next;
+        }
+}
+
+void clear(struct node *list)
+{
+	while(list != NULL)
+		{
+			struct node *temp = list;
+			list = list->next;
+			free(temp);
+		}
 }
 
