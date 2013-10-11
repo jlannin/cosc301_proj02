@@ -160,7 +160,7 @@ void runSequential(char *** commands, int *sequential)
 			{
 				if (execv(argj[0], argj) < 0)
    				{
-					fprintf(stderr, "execv failed: %s\n", strerror(errno));
+					printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
 					exit(1);
 				}
 			}
@@ -215,7 +215,7 @@ void runParallel(char ***commands, int *sequential)
 					//printf("%s\n", argj[0]);
 					if (execv(argj[0], argj) < 0)
 	   				{
-						fprintf(stderr, "execv failed: %s\n", strerror(errno));
+						printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
 						exit(*sequential);
 					}
 				}
@@ -335,8 +335,9 @@ void list_append(const char *name, struct node **head) {
 	{
 		return;
 	}
-	struct node *newnode = malloc(sizeof(struct node));
-	strncpy(newnode->name, name, 127);
+	printf("%s\n", name);
+	struct node *newnode = (struct node*) malloc(sizeof(struct node));
+	strncpy((newnode->name), name, 127);
 	newnode->next = NULL;
  	while((*head) != NULL)
        	{

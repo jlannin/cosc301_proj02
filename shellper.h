@@ -2,7 +2,7 @@
 #define __SHELLPER_H__
 
 struct node {
-	char *name;
+	char name[128];
 	struct node *next;
 };
 
@@ -19,6 +19,7 @@ int *getvalidreturns(char ***);
 void list_append(const char *, struct node **);
 void list_print(const struct node *);
 void clear(struct node *);
+void findFile(char ****, struct node *);
 struct node *getPaths();
 
 
