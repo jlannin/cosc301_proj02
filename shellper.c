@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "shellper.h"
+//#include "jobnode.h"
 
 //break up input string into sections by semicolon
 char **tokenify(const char *str)
@@ -135,7 +136,7 @@ void freeCommands(char ***arr)
 	}
 }
 
-void runSequential(char *** commands, int *sequential)
+void runSequential(char *** commands, int *sequential, struct jobnode **jobs)
 {
 	int i = 0;
 	while (commands[i] != NULL)
@@ -147,10 +148,25 @@ void runSequential(char *** commands, int *sequential)
 			{
 				(*sequential) = 2;
 			}
+			else
+			{
+				printf("%s\n", "Error: \"exit\" has no parameters!");
+			}
 		}
 		else if (strcmp(commands[i][0], "mode") == 0)
 		{
 			modefun(commands[i], sequential);
+		}
+		else if (strcmp(commands[i][0], "jobs") == 0)
+		{
+			if (commands[i][1] == NULL)
+			{
+				jobs_print(*jobs);
+			}
+			else
+			{
+				printf("%s\n", "Error: \"jobs\" has no parameters!");
+			}
 		}
 		else
 		{
@@ -178,77 +194,134 @@ void runSequential(char *** commands, int *sequential)
 	}
 }
 
-void runParallel(char ***commands, int *sequential)
+void runParallel(char ***commands, int *sequential, struct jobnode **jobs)
 {
-	int childreturn;
 	int i = 0;
-	int numCommands = commandCount(commands);
-	int check;
-	int *validreturns = getvalidreturns(commands);
-	pid_t validpids[validreturns[0]];
-	int valnum = 0;
-		while(commands[i] != NULL)
+	while(commands[i] != NULL)
+	{
+		char **argj = commands[i];
+		if (strcmp(commands[i][0], "exit") == 0)
 		{
-			pid_t pid1 = fork();
-			if (validreturns[i+1] == 1)
+			if (commands[i][1] == NULL)
 			{
-				validpids[valnum] = pid1;
-				valnum++;
+				(*sequential) = 2;
 			}
-			if (pid1 == 0)
+			else
 			{
-				char **argj = commands[i];
-				if (strcmp(commands[i][0], "exit") == 0)
+				printf("%s\n", "Error: \"exit\" has no parameters!");
+			}
+		}
+		else if (strcmp(commands[i][0], "mode") == 0)
+		{
+			modefun(commands[i], sequential);
+		}
+		else if (strcmp(commands[i][0], "jobs") == 0)
+		{
+			
+			if (commands[i][1] != NULL)
+			{
+				printf("%s\n", "Error: \"jobs\" has no parameters!");
+			}
+				jobs_print(*jobs);
+		}
+		else if (strcmp(commands[i][0], "pause") == 0)
+		{
+			if (commands[i][1] == NULL)
+			{
+				printf("%s\n", "Error: \"pause\" needs one parameter!");
+			}
+			else if (commands[i][2] != NULL)
+			{
+				printf("%s\n", "Error: \"pause\" has only one parameter!");
+			}
+			else
+			{
+				int pausetarget = atol(commands[i][1]); 
+				struct jobnode *paused = findchild(pausetarget, jobs);
+				if (paused == NULL) //can't find child
 				{
-					if (commands[i][1] == NULL)
-					{
-						exit(2);
-					}
-				}
-				else if (strcmp(commands[i][0], "mode") == 0)
-				{
-					modefun(commands[i], sequential);
-					exit(*sequential);
+					printf("%s\n", "Error: In \"pause,\" unable to find process!");
 				}
 				else
-				{	
-					//printf("%s\n", argj[0]);
-					if (execv(argj[0], argj) < 0)
-	   				{
-						printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
-						exit(*sequential);
+				{
+					if (paused->running == 0)
+					{
+						printf("%s\n", "Error: Process already paused!");
 					}
+					else
+					{
+					int killresult = kill(pausetarget, SIGSTOP);
+					if (killresult == 0)
+					{
+						paused->running = 0;
+					}					
+					else if(killresult < 0)
+						{
+							printf("Pause failed: %s\n", strerror(errno));
+							exit(1);
+						}	
+					}
+				}
+			}
+		}
+		else if (strcmp(commands[i][0], "resume") == 0)
+		{
+			if (commands[i][1] == NULL)
+			{
+				printf("%s\n", "Error: \"resume\" needs one parameter!");
+			}
+			else if (commands[i][2] != NULL)
+			{
+				printf("%s\n", "Error: \"resume\" has only one parameter!");
+			}
+			else
+			{
+				int resumetarget = atol(commands[i][1]); 
+				struct jobnode *resume = findchild(resumetarget, jobs);
+				if (resume == NULL) //can't find child
+				{
+					printf("%s\n", "Error: In \"resume,\" unable to find process!");
+				}
+				else
+				{
+					if (resume->running == 1)
+					{
+						printf("%s\n", "Error: Process already running!");
+					}
+					else
+					{
+						int killresult = kill(resumetarget, SIGCONT);
+						if (killresult == 0)
+						{
+							resume->running = 1;
+						}		
+						else if(killresult < 0)
+						{
+							printf("Resume failed: %s\n", strerror(errno));
+							exit(1);
+						}			
+					}
+				}
+			}
+		}
+		else
+		{	
+			pid_t pid1 = fork();
+			if (pid1 == 0)
+			{
+				if (execv(argj[0], argj) < 0)
+				{
+					printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
+					exit(1);
 				}
 			}
 			else if (pid1 > 0)
 			{
-				// if returnarr[i] = 1 
-				// then outpur
-				i++;
+				jobs_append(commands[i][0], pid1, jobs);
 			}
 		}
-		i = 0;
-		while (i < validreturns[0])
-		{
-			check = waitpid(validpids[i+1], &childreturn, 0);
-			if((*sequential) != 2)
-			{
-				(*sequential) = WEXITSTATUS(childreturn);
-			}
-			i++;
-		}
-		while (i < numCommands)
-		{	
-			check = wait(&childreturn);
-			//printf("%d\n", WEXITSTATUS(childreturn));
-			if (check == -1)
-			{
-				fprintf(stderr, "Wait failed HERE: %s\n", strerror(errno));
-				//exit(1);
-			}
-		i++;
-		}
-		free(validreturns);
+	i++;
+	}
 }
 
 int commandCount(char ***commands)
@@ -287,7 +360,7 @@ int *getvalidreturns(char ***commands)
 				}
 			i++;
 		}
-	valid[i+1] = NULL;
+	valid[i+1] = -1;
 	valid[0] = countvalid;
 	return valid;
 }
@@ -330,7 +403,7 @@ void modefun(char **commands, int *sequential)
 }
 
 
-void list_append(const char *name, struct node **head) {
+void paths_append(const char *name, struct node **head) {
 	if (name == NULL)
 	{
 		return;
@@ -346,7 +419,7 @@ void list_append(const char *name, struct node **head) {
 	(*head)=newnode;
 }
 
-void list_print(const struct node *head) {
+void paths_print(const struct node *head) {
         while(head != NULL)
         {
                 printf("Node at address %p has value %s\n", head, head->name);
@@ -354,11 +427,83 @@ void list_print(const struct node *head) {
         }
 }
 
-void clear(struct node *list)
+void paths_clear(struct node *list)
 {
 	while(list != NULL)
 		{
 			struct node *temp = list;
+			list = list->next;
+			free(temp);
+		}
+}
+
+
+void jobs_append(const char *newcommand, pid_t newpid, struct jobnode **head) {
+	if (newcommand == NULL)
+	{
+		return;
+	}
+	struct jobnode *newnode = (struct jobnode*) malloc(sizeof(struct jobnode));
+	strncpy((newnode->command), newcommand, 1023);
+	newnode->pid = newpid;
+	newnode->running = 1;
+	newnode->next = NULL;
+ 	while((*head) != NULL)
+       	{
+		head = &((*head)->next);
+	}
+	(*head)=newnode;
+
+}
+
+int jobs_delete(pid_t target, struct jobnode **head) {
+	while((*head) != NULL)
+        {
+		if((*head)->pid== target)
+        	{
+			struct jobnode *temp = (*head);
+			(*head) = (*head)->next;
+			free(temp);
+			return 1;
+               	}
+		head = &((*head)->next);
+       	}
+	return 0;
+}
+
+void jobs_print(const struct jobnode *head) {
+
+	if (head == NULL)
+	{
+		printf("%s\n", "\nNo processes currently running");
+		return;
+	}     
+	printf("%s\n","");
+	printf("%s\n", "\tProcess Id\tState\t\tCommand");
+	while(head != NULL)
+        {
+		printf("%s\t", "");
+                printf("%d", head->pid);
+		printf("%s\t\t", "");
+		if (head->running)
+		{
+			printf("%s", "Running\t\t");
+		}
+		else
+		{
+			printf("%s", "Paused\t\t");
+		}
+                printf("%s\n", head->command);
+		fflush(stdout);
+                head = head->next;
+        }
+}
+
+void jobs_clear(struct jobnode *list)
+{
+	while(list != NULL)
+		{
+			struct jobnode *temp = list;
 			list = list->next;
 			free(temp);
 		}
