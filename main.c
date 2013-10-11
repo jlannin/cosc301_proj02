@@ -12,11 +12,11 @@
 #include <poll.h>
 #include <signal.h>
 #include "shellper.h"
+#include "jobnode.h"
 
 int main(int argc, char **argv) 
 {
 	struct stat statresult;
-	
 	int exist = stat("shell-config", &statresult);
 	int search = 1;
 	struct node *paths;
@@ -30,7 +30,6 @@ int main(int argc, char **argv)
 	{
 		
 		paths = getPaths();
-		paths_print(paths);
 	}
 	char ** arr;
 	char ***commands;
@@ -122,7 +121,6 @@ int main(int argc, char **argv)
 				}
 				if (rv > 0)//getinput
 				{
-					//printf("%s\n", "processing input");
 					break;
 				}
 			}
@@ -154,13 +152,12 @@ void findFile(char **** commands, struct node *list)
 	struct stat statresult;
 	char * string;
 	char *** temp = *commands;
-	char * tempstring;
 	struct node *nodetemp = list;
 	for(;x < commandCount(*commands); x++)
 	{
-		tempstring = (temp[x][0]);
+		string = temp[x][0];
 		nodetemp = list;
-		valid = stat(tempstring, &statresult);
+		valid = stat(string, &statresult);
 		if (!valid)
 		{
 			break;
@@ -169,15 +166,12 @@ void findFile(char **** commands, struct node *list)
 		{
 			while (nodetemp != NULL)
 			{
-				string = strdup(nodetemp->name);
-				string = strcat(string, "/");
-				tempstring = temp[x][0];
-				tempstring = strcat(string,tempstring);
-				valid = stat(tempstring, &statresult);
+				string = ourconcat((nodetemp->name), "/", temp[x][0]);
+				valid = stat(string, &statresult);
 				if (!valid)
 				{
 					free(temp[x][0]);
-					temp[x][0] = tempstring;
+					temp[x][0] = string;
 					break;
 				}	
 				nodetemp = nodetemp->next;
@@ -199,6 +193,31 @@ void runProcesses(char *** commands, int *sequential, struct jobnode **jobs)
 		{
 			runParallel(commands, sequential, jobs);
 		}
+
+}
+
+char *ourconcat(char * begin, char * mid, char *end)
+{
+	int len1 = strlen(begin) + strlen(mid) + strlen(end) + 1;
+	char * newstring = (char *) malloc(sizeof(char)*len1);
+	int x = 0;
+	int numbeg = strlen(begin);
+	for (; x < numbeg; x++)
+	{
+		newstring[x] = begin[x];
+	}
+	x = 0;
+	for (; x < strlen(mid); x++)
+	{
+		newstring[x + numbeg] = mid[x];
+	}
+	x = 0;
+	for (; x < strlen(end); x++)
+	{
+		newstring[x+numbeg+strlen(mid)] = end[x];
+	}
+	newstring[len1-1] = '\0';
+	return newstring;
 
 }
 

@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "shellper.h"
-//#include "jobnode.h"
+#include "jobnode.h"
 
 //break up input string into sections by semicolon
 char **tokenify(const char *str)
@@ -43,11 +43,9 @@ char **tokenify(const char *str)
 	}
 	for (word = strtok_r(s1, sep, &tmp); word != NULL; word = strtok_r(NULL, sep, &tmp))
         {
-		//printf("%s\n", word);
               	array[count] = strdup(word);
                 count++;
         }
-	//printf("%d\n",count);
 	array[count] = NULL;
 	free(s1);
 	return array;
@@ -334,37 +332,6 @@ int commandCount(char ***commands)
 	return i;
 }
 
-int *getvalidreturns(char ***commands)
-{
-	int i = 0;
-	int countvalid = 0;
-	int *valid = (int *) malloc((sizeof(int))*(commandCount(commands)+2));
-	while(commands[i] != NULL)
-		{
-				if (strcmp(commands[i][0], "exit") == 0)
-				{
-					if (commands[i][1] == NULL)
-					{
-						valid[i+1] = 1;
-						countvalid++;
-					}
-				}
-				else if (strcmp(commands[i][0], "mode") == 0)
-				{
-					valid[i+1] = 1;
-					countvalid++;
-				}
-				else
-				{
-					valid[i] = 0;
-				}
-			i++;
-		}
-	valid[i+1] = -1;
-	valid[0] = countvalid;
-	return valid;
-}
-
 void modefun(char **commands, int *sequential)
 {
 	if((*sequential) != 2)
@@ -408,7 +375,6 @@ void paths_append(const char *name, struct node **head) {
 	{
 		return;
 	}
-	printf("%s\n", name);
 	struct node *newnode = (struct node*) malloc(sizeof(struct node));
 	strncpy((newnode->name), name, 127);
 	newnode->next = NULL;
@@ -437,75 +403,4 @@ void paths_clear(struct node *list)
 		}
 }
 
-
-void jobs_append(const char *newcommand, pid_t newpid, struct jobnode **head) {
-	if (newcommand == NULL)
-	{
-		return;
-	}
-	struct jobnode *newnode = (struct jobnode*) malloc(sizeof(struct jobnode));
-	strncpy((newnode->command), newcommand, 1023);
-	newnode->pid = newpid;
-	newnode->running = 1;
-	newnode->next = NULL;
- 	while((*head) != NULL)
-       	{
-		head = &((*head)->next);
-	}
-	(*head)=newnode;
-
-}
-
-int jobs_delete(pid_t target, struct jobnode **head) {
-	while((*head) != NULL)
-        {
-		if((*head)->pid== target)
-        	{
-			struct jobnode *temp = (*head);
-			(*head) = (*head)->next;
-			free(temp);
-			return 1;
-               	}
-		head = &((*head)->next);
-       	}
-	return 0;
-}
-
-void jobs_print(const struct jobnode *head) {
-
-	if (head == NULL)
-	{
-		printf("%s\n", "\nNo processes currently running");
-		return;
-	}     
-	printf("%s\n","");
-	printf("%s\n", "\tProcess Id\tState\t\tCommand");
-	while(head != NULL)
-        {
-		printf("%s\t", "");
-                printf("%d", head->pid);
-		printf("%s\t\t", "");
-		if (head->running)
-		{
-			printf("%s", "Running\t\t");
-		}
-		else
-		{
-			printf("%s", "Paused\t\t");
-		}
-                printf("%s\n", head->command);
-		fflush(stdout);
-                head = head->next;
-        }
-}
-
-void jobs_clear(struct jobnode *list)
-{
-	while(list != NULL)
-		{
-			struct jobnode *temp = list;
-			list = list->next;
-			free(temp);
-		}
-}
 
