@@ -13,9 +13,42 @@
 #include <signal.h>
 #include "shellper.h"
 #include "jobnode.h"
-
+#include "paths.h"
+#include "runprocesses.h"
  
+char *ourconcat(char * begin, char * mid, char *end)
+{
+	int len1 = strlen(begin) + strlen(mid) + strlen(end) + 1;
+	char * newstring = (char *) malloc(sizeof(char)*len1);
+	int x = 0;
+	int numbeg = strlen(begin);
+	for (; x < numbeg; x++)
+	{
+		newstring[x] = begin[x];
+	}
+	x = 0;
+	for (; x < strlen(mid); x++)
+	{
+		newstring[x + numbeg] = mid[x];
+	}
+	x = 0;
+	for (; x < strlen(end); x++)
+	{
+		newstring[x+numbeg+strlen(mid)] = end[x];
+	}
+	newstring[len1-1] = '\0';
+	return newstring;
 
+}
+
+
+/*
+Preparellel is called from main and is used when the shell is in
+parallel mode and is waiting for input.  It will
+switch back and forth between checking for user input
+and waiting for processes to finish.  If a process 
+finishes, it will print out a message that the process finished.
+*/
 void preparellel(struct jobnode **jobs)
 {
 	int check = 0;
@@ -36,7 +69,7 @@ void preparellel(struct jobnode **jobs)
 					struct jobnode* child = findchild(check, jobs);
 					if (child != NULL)
 					{
-						printf("\n\t%s", child->command);
+						printf("%s", child->command);
 						printf("%s\n", " Finished!");
 						printf("%s", "Shell shell shell:");
 						fflush(stdout);	
@@ -59,26 +92,22 @@ void preparellel(struct jobnode **jobs)
 				}					
 			}
 		}
-		if (rv > 0)//getinput
+		else if (rv > 0)//getinput
 		{
 			break;
 		}
+		else
+		{
+			fprintf(stderr, "Poll Failed: %s\n", strerror(errno));
+			exit(1);
+		}
+		
 	}
 
 }
-struct jobnode *findchild(pid_t target, struct jobnode **head)
-{
-	struct jobnode *temp = *head;
-	while (temp != NULL)
-	{
-		if (temp->pid == target)
-		{
-			return temp;
-		}
-		temp = temp->next;
-	}
-	return NULL;
-}
+
+
+
 
 void findFile(char **** commands, struct node *list)
 {
@@ -117,67 +146,6 @@ void findFile(char **** commands, struct node *list)
 	}
 	commands = &temp;
 }
-
-void runProcesses(char *** commands, int *sequential, struct jobnode **jobs)
-{
-	if((*sequential))
-		{
-			runSequential(commands, sequential, jobs);
-		}
-		else
-		{
-			runParallel(commands, sequential, jobs);
-		}
-
-}
-
-char *ourconcat(char * begin, char * mid, char *end)
-{
-	int len1 = strlen(begin) + strlen(mid) + strlen(end) + 1;
-	char * newstring = (char *) malloc(sizeof(char)*len1);
-	int x = 0;
-	int numbeg = strlen(begin);
-	for (; x < numbeg; x++)
-	{
-		newstring[x] = begin[x];
-	}
-	x = 0;
-	for (; x < strlen(mid); x++)
-	{
-		newstring[x + numbeg] = mid[x];
-	}
-	x = 0;
-	for (; x < strlen(end); x++)
-	{
-		newstring[x+numbeg+strlen(mid)] = end[x];
-	}
-	newstring[len1-1] = '\0';
-	return newstring;
-
-}
-
-struct node *getPaths()
-{
-	FILE *datafile =  NULL;
-	datafile = fopen("shell-config", "r");
-	if (datafile == NULL)
-	{
-		printf("Unable to open file %s: %s\n", "shell-config", strerror(errno));
-		exit(1);
-	}
-	
-	struct node *paths = NULL;
-	char buffer[128];
-	while(fgets(buffer, 128, datafile) != NULL)
-	{	
-		buffer[strlen(buffer)-1] = '\0';
-		paths_append(buffer, &paths);	
-	}
-	fclose(datafile);
-	return paths;
-}
-
-
 
 int main(int argc, char **argv) 
 {

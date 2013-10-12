@@ -71,6 +71,20 @@ void jobs_print(const struct jobnode *head) {
         }
 }
 
+struct jobnode *findchild(pid_t target, struct jobnode **head)
+{
+	struct jobnode *temp = *head;
+	while (temp != NULL)
+	{
+		if (temp->pid == target)
+		{
+			return temp;
+		}
+		temp = temp->next;
+	}
+	return NULL;
+}
+
 void jobs_clear(struct jobnode *list)
 {
 	while(list != NULL)

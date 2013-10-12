@@ -9,8 +9,13 @@
 #include <sys/wait.h>
 #include "shellper.h"
 #include "jobnode.h"
+#include "paths.h"
+#include "runprocesses.h"
 
-//break up input string into sections by semicolon
+/*
+Tokenify breaks the user input into an
+array of strings, removing any comments along the way.
+*/
 char **tokenify(const char *str)
 {
 	int j = 0;
@@ -25,6 +30,7 @@ char **tokenify(const char *str)
 			s[j] = '\0';
 		}
 	}
+	//first run through to get number of separate commands
 	for (word = strtok_r(s, sep, &tmp); word != NULL; word = strtok_r(NULL, sep, &tmp))
 	{
 		count++;
@@ -51,7 +57,11 @@ char **tokenify(const char *str)
 	return array;
 }
 
-//words broken up by semicolons
+/*
+Breaks each unique command (previously separated by tokenify)
+up by space/tab/newline and puts them into a larger array of string arrays.
+	
+*/
 char ***extractCommands(char **token)
 {
 	int i = 0;
@@ -69,6 +79,8 @@ char ***extractCommands(char **token)
 		{
 			count++;	
 		}
+		//count records how many actual words there are (not just blank spaces) in each "command"
+		//if there is an actual word, that section is counted as a real command and the command count increases
 		if(count > 0)
 		{
 			commandcount++;
@@ -76,7 +88,6 @@ char ***extractCommands(char **token)
 		free(s);
 	i++;
 	}
-	//i should be number of commands
 	char ***commands = (char***) malloc((sizeof(char**))*(commandcount+1));
 	i = 0;
 	count = 0;
@@ -113,6 +124,9 @@ char ***extractCommands(char **token)
 	return commands;
 }
 
+
+
+
 void freeToken(char **arr)
 {
 	int i = 0;
@@ -132,275 +146,6 @@ void freeCommands(char ***arr)
 		free(arr[i]);
 	i++;
 	}
-}
-
-void runSequential(char *** commands, int *sequential, struct jobnode **jobs)
-{
-	int i = 0;
-	while (commands[i] != NULL)
-	{
-		char **argj = commands[i];
-		if (strcmp(commands[i][0], "exit") == 0)
-		{
-			if (commands[i][1] == NULL)
-			{
-				(*sequential) = 2;
-			}
-			else
-			{
-				printf("%s\n", "Error: \"exit\" has no parameters!");
-			}
-		}
-		else if (strcmp(commands[i][0], "mode") == 0)
-		{
-			modefun(commands[i], sequential);
-		}
-		else if (strcmp(commands[i][0], "jobs") == 0)
-		{
-			if (commands[i][1] == NULL)
-			{
-				jobs_print(*jobs);
-			}
-			else
-			{
-				printf("%s\n", "Error: \"jobs\" has no parameters!");
-			}
-		}
-		else
-		{
-			pid_t pid = fork();
-			int childreturn;
-			if (pid == 0) //child
-			{
-				if (execv(argj[0], argj) < 0)
-   				{
-					printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
-					exit(1);
-				}
-			}
-			else if (pid > 0)
-			{
-     				int check;
-     				check = waitpid(pid, &childreturn, 0);
-       				if (check == -1)
-				{
-					fprintf(stderr, "Wait failed: %s\n", strerror(errno));
-				}
-    			}
-		}
-		i++;
-	}
-}
-
-void runParallel(char ***commands, int *sequential, struct jobnode **jobs)
-{
-	int i = 0;
-	while(commands[i] != NULL)
-	{
-		char **argj = commands[i];
-		if (strcmp(commands[i][0], "exit") == 0)
-		{
-			if (commands[i][1] == NULL)
-			{
-				(*sequential) = 2;
-			}
-			else
-			{
-				printf("%s\n", "Error: \"exit\" has no parameters!");
-			}
-		}
-		else if (strcmp(commands[i][0], "mode") == 0)
-		{
-			modefun(commands[i], sequential);
-		}
-		else if (strcmp(commands[i][0], "jobs") == 0)
-		{
-			
-			if (commands[i][1] != NULL)
-			{
-				printf("%s\n", "Error: \"jobs\" has no parameters!");
-			}
-				jobs_print(*jobs);
-		}
-		else if (strcmp(commands[i][0], "pause") == 0)
-		{
-			if (commands[i][1] == NULL)
-			{
-				printf("%s\n", "Error: \"pause\" needs one parameter!");
-			}
-			else if (commands[i][2] != NULL)
-			{
-				printf("%s\n", "Error: \"pause\" has only one parameter!");
-			}
-			else
-			{
-				int pausetarget = atol(commands[i][1]); 
-				struct jobnode *paused = findchild(pausetarget, jobs);
-				if (paused == NULL) //can't find child
-				{
-					printf("%s\n", "Error: In \"pause,\" unable to find process!");
-				}
-				else
-				{
-					if (paused->running == 0)
-					{
-						printf("%s\n", "Error: Process already paused!");
-					}
-					else
-					{
-					int killresult = kill(pausetarget, SIGSTOP);
-					if (killresult == 0)
-					{
-						paused->running = 0;
-					}					
-					else if(killresult < 0)
-						{
-							printf("Pause failed: %s\n", strerror(errno));
-							exit(1);
-						}	
-					}
-				}
-			}
-		}
-		else if (strcmp(commands[i][0], "resume") == 0)
-		{
-			if (commands[i][1] == NULL)
-			{
-				printf("%s\n", "Error: \"resume\" needs one parameter!");
-			}
-			else if (commands[i][2] != NULL)
-			{
-				printf("%s\n", "Error: \"resume\" has only one parameter!");
-			}
-			else
-			{
-				int resumetarget = atol(commands[i][1]); 
-				struct jobnode *resume = findchild(resumetarget, jobs);
-				if (resume == NULL) //can't find child
-				{
-					printf("%s\n", "Error: In \"resume,\" unable to find process!");
-				}
-				else
-				{
-					if (resume->running == 1)
-					{
-						printf("%s\n", "Error: Process already running!");
-					}
-					else
-					{
-						int killresult = kill(resumetarget, SIGCONT);
-						if (killresult == 0)
-						{
-							resume->running = 1;
-						}		
-						else if(killresult < 0)
-						{
-							printf("Resume failed: %s\n", strerror(errno));
-							exit(1);
-						}			
-					}
-				}
-			}
-		}
-		else
-		{	
-			pid_t pid1 = fork();
-			if (pid1 == 0)
-			{
-				if (execv(argj[0], argj) < 0)
-				{
-					printf("Execv of \"%s\" failed: %s\n", argj[0], strerror(errno));
-					exit(1);
-				}
-			}
-			else if (pid1 > 0)
-			{
-				jobs_append(commands[i][0], pid1, jobs);
-			}
-		}
-	i++;
-	}
-}
-
-int commandCount(char ***commands)
-{
-	int i = 0;
-	while (commands[i] != NULL)
-	{
-		i++;
-	}
-	return i;
-}
-
-void modefun(char **commands, int *sequential)
-{
-	if((*sequential) != 2)
-	{
-		if(commands[1] == NULL)
-		{
-			if((*sequential))
-			{
-				printf("%s\n","sequential mode");
-			}
-			else
-			{
-				printf("%s\n", "parallel mode");
-			}
-		}
-		else if(commands[2] == NULL)
-		{
-			if(strncasecmp("parallel", commands[1], strlen(commands[1])) == 0)
-			{
-				(*sequential) = 0;
-			}
-			else if(strncasecmp("sequential",commands[1], strlen(commands[1])) == 0)
-			{
-				(*sequential) = 1;
-			}
-			else
-			{
-				fprintf(stderr, "%s\n", "Incorrect mode specified, please only use parallel or sequential. Thank you.");
-			}
-		}
-		else
-		{
-			fprintf(stderr, "%s\n", "Too many parameters, mode only allows one.");
-		}
-	}
-}
-
-
-void paths_append(const char *name, struct node **head) {
-	if (name == NULL)
-	{
-		return;
-	}
-	struct node *newnode = (struct node*) malloc(sizeof(struct node));
-	strncpy((newnode->name), name, 127);
-	newnode->next = NULL;
- 	while((*head) != NULL)
-       	{
-       		head = &((*head)->next);
-	}
-	(*head)=newnode;
-}
-
-void paths_print(const struct node *head) {
-        while(head != NULL)
-        {
-                printf("Node at address %p has value %s\n", head, head->name);
-                head = head->next;
-        }
-}
-
-void paths_clear(struct node *list)
-{
-	while(list != NULL)
-		{
-			struct node *temp = list;
-			list = list->next;
-			free(temp);
-		}
 }
 
 
