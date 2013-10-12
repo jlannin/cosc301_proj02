@@ -4,14 +4,15 @@
 struct jobnode {
 	pid_t pid;
 	int running;
-	char command[1024];
+	char **command;
 	struct jobnode *next;
 };
 
-void jobs_append(const char *, pid_t, struct jobnode **);
+void jobs_append(char **, pid_t, struct jobnode **);
 void jobs_print(const struct jobnode *);
 struct jobnode *findchild(pid_t, struct jobnode **);
 void jobs_clear(struct jobnode *);
 int jobs_delete(pid_t, struct jobnode **);
+void jobs_commandprint(char **, int);
 
 #endif // __PATHS_H__

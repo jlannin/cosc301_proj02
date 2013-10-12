@@ -1,3 +1,35 @@
+/**
+Justin Lannin and Adam Weber
+10/11/13
+
+We both coded together in order to catch errors and talk about ideas.  Because of this, it is a little hard to say who exactly
+was responsible for what, we both made significant contributions.
+
+
+
+The basic structure of our program is as follows:
+
+Read in shell-config
+	-store paths in variable "paths"
+Read in input:
+Parse input by semicolons
+Parse parsed input by spaces
+	-Commands are now stored in "commands" which is a char***
+	-each commands[i] is a single command so that commands[i][0] is the
+	-process name.
+Run sequential or parallel depending.
+Check for exiting
+Free what needs to be freed.
+If in parallel mode, call preparellel which prepares
+the shell for parallel mode (switching back and forth
+between waiting for processes and user input)
+
+
+*/
+
+
+
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -16,6 +48,9 @@
 #include "paths.h"
 #include "runprocesses.h"
  
+/*
+A quick concat function that we wrote for using paths.
+*/
 char *ourconcat(char * begin, char * mid, char *end)
 {
 	int len1 = strlen(begin) + strlen(mid) + strlen(end) + 1;
@@ -69,10 +104,18 @@ void preparellel(struct jobnode **jobs)
 					struct jobnode* child = findchild(check, jobs);
 					if (child != NULL)
 					{
-						printf("%s", child->command);
-						printf("%s\n", " Finished!");
+						printf("%s", "Process ");
+						printf("%d", child->pid);
+						printf("%s", " (");
+						jobs_commandprint(child->command, 0);
+						printf("%s", ") ");
+						printf("%s\n", "completed");
 						printf("%s", "Shell shell shell:");
-						fflush(stdout);	
+						int flush = fflush(stdout);
+						if (flush)
+						{
+							fprintf(stderr, "Flush failed: %s\n", strerror(errno));
+						}
 						int delete = jobs_delete(check, jobs);
 						if(!delete)
 						{
@@ -105,10 +148,18 @@ void preparellel(struct jobnode **jobs)
 	}
 
 }
-
-
-
-
+/*
+void printcommand(char ** command)
+{
+	while(command != NULL
+}
+*/
+/*
+Using the paths stored in list, it looks for the commands
+and replaces those commands that don't exist with ones that do.
+If no existing files are found, the command is left to fail as is
+with execv later on.
+*/
 void findFile(char **** commands, struct node *list)
 {
 	int x = 0;
@@ -125,14 +176,14 @@ void findFile(char **** commands, struct node *list)
 		if (!valid)
 		{
 			break;
-		}
+		}	
 		else
 		{
 			while (nodetemp != NULL)
 			{
 				string = ourconcat((nodetemp->name), "/", temp[x][0]);
-				valid = stat(string, &statresult);
-				if (!valid)
+				valid = stat(string, &statresult);				
+				if (valid == 0)
 				{
 					free(temp[x][0]);
 					temp[x][0] = string;
@@ -169,9 +220,12 @@ int main(int argc, char **argv)
 	FILE *datafile = stdin;
 	char buffer[1024];
 	printf("Shell shell shell:");
-	fflush(stdout);
+	int flush = fflush(stdout);
+	if (flush)	
+	{	
+		fprintf(stderr, "Flush failed: %s\n", strerror(errno));
+	}
 	int sequential = 1;
-
 	int modetemp = 1;
 	while(fgets(buffer, 1024, datafile) != NULL)
 	{
@@ -209,7 +263,11 @@ int main(int argc, char **argv)
 			modetemp = sequential;
 		}
 		printf("Shell shell shell:");
-		fflush(stdout);
+		flush = fflush(stdout);
+		if (flush)	
+		{	
+			fprintf(stderr, "Flush failed: %s\n", strerror(errno));
+		}
 		if(sequential == 0)
 		{		
 			preparellel(&jobs);

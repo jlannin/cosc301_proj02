@@ -8,6 +8,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "paths.h"
+/*
+paths.c and paths.h basically define everything that we need for the path
+part of our program.  It tries to read in shell-config" and if successful
+makes a linked list with all of the paths as nodes.
+*/
+
 
 struct node *getPaths()
 {
@@ -26,7 +32,12 @@ struct node *getPaths()
 		buffer[strlen(buffer)-1] = '\0';
 		paths_append(buffer, &paths);	
 	}
-	fclose(datafile);
+	int success = fclose(datafile);
+	if (success)
+	{
+		printf("Unable to close file %s: %s\n", "shell-config", strerror(errno));
+		exit(1);
+	}	
 	return paths;
 }
 
@@ -37,6 +48,11 @@ void paths_append(const char *name, struct node **head) {
 		return;
 	}
 	struct node *newnode = (struct node*) malloc(sizeof(struct node));
+	if(newnode==NULL)
+	{
+		printf("%s\n", "Malloc Fails: Exiting Now!");
+		exit(1);
+	}	
 	strncpy((newnode->name), name, 127);
 	newnode->next = NULL;
  	while((*head) != NULL)

@@ -13,6 +13,11 @@
 #include "runprocesses.h"
 
 /*
+This file contains basically everything needed to run the processes.
+It contains methods for sequential, parallel, and some helper files too.
+*/
+
+/*
 This runs everything that needs to happen for sequential
 */
 void runSequential(char *** commands, int *sequential, struct jobnode **jobs)
@@ -66,8 +71,15 @@ void runSequential(char *** commands, int *sequential, struct jobnode **jobs)
        				if (check == -1)
 				{
 					fprintf(stderr, "Wait failed: %s\n", strerror(errno));
+					exit(1);
+
 				}
     			}
+			else
+			{
+				fprintf(stderr, "Fork failed: %s\n", strerror(errno));
+				exit(1);
+			}
 		}
 		i++;
 	}
@@ -129,7 +141,12 @@ void runParallel(char ***commands, int *sequential, struct jobnode **jobs)
 			}
 			else if (pid1 > 0)
 			{
-				jobs_append(commands[i][0], pid1, jobs);
+				jobs_append(commands[i], pid1, jobs);
+			}
+			else
+			{
+				fprintf(stderr, "Fork failed: %s\n", strerror(errno));
+				exit(1);
 			}
 		}
 	i++;

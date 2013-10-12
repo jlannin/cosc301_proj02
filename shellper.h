@@ -2,8 +2,6 @@
 #define __SHELLPER_H__
 #include "jobnode.h"
 
-
-
 char **tokenify(const char *);
 char ***extractCommands(char **);
 void freeToken(char **);
